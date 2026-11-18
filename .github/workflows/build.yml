@@ -11,11 +11,11 @@ jobs:
           java-version: 21
       - name: Accept Android licenses
         run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses || true
-      - name: Build
+      - name: Build (arm64 only, small APK)
         working-directory: V2rayNG
         run: |
           chmod +x gradlew
-          ./gradlew assemblePlaystoreDebug
+          ./gradlew assemblePlaystoreDebug -PABI_FILTERS=arm64-v8a
       - uses: actions/upload-artifact@v4
         with:
           name: zvpn-apk

@@ -48,6 +48,8 @@ import com.v2ray.ang.ui.server.ServerWireguardActivity
 import com.v2ray.ang.ui.settings.SettingsActivity
 import com.v2ray.ang.ui.subscription.SubSettingActivity
 import com.v2ray.ang.ui.userasset.UserAssetActivity
+import com.v2ray.ang.ui.wallet.WalletActivity
+import com.v2ray.ang.ui.wallet.WalletStore
 import com.v2ray.ang.util.LogUtil
 import com.v2ray.ang.util.Utils
 import kotlinx.coroutines.Dispatchers
@@ -147,6 +149,7 @@ class MainActivity : HelperBaseComponentActivity() {
 
     private fun navigateTo(destination: MainDestination) {
         val intent = when (destination) {
+            MainDestination.Wallet -> Intent(this, WalletActivity::class.java)
             MainDestination.Subscriptions -> Intent(this, SubSettingActivity::class.java)
             MainDestination.PerAppProxy -> Intent(this, PerAppProxyActivity::class.java)
             MainDestination.Routing -> Intent(this, RoutingSettingActivity::class.java)
@@ -171,6 +174,15 @@ class MainActivity : HelperBaseComponentActivity() {
         if (mainViewModel.uiState.value.isRunning) {
             LauncherManager.stopService(this)
         } else {
+            if (!WalletStore.hasActiveSubscription(this)) {
+                android.widget.Toast.makeText(
+                    this,
+                    "اشتراک فعال ندارید. از کیف پول اشتراک تهیه کنید.",
+                    android.widget.Toast.LENGTH_LONG
+                ).show()
+                startActivity(Intent(this, WalletActivity::class.java))
+                return
+            }
             requestServiceStart()
         }
     }
