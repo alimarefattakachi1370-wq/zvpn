@@ -21,6 +21,12 @@ object AppLocaleManager {
      * Migrates the existing MMKV language preference and restores it before the first activity.
      */
     fun initialize(context: Context) {
+        // ZVPN: Persian is the default language (applied once, also on upgrades).
+        if (!MmkvManager.decodeSettingsBool("zvpn_fa_default", false)) {
+            MmkvManager.encodeSettings("zvpn_fa_default", true)
+            MmkvManager.encodeSettings(AppConfig.PREF_LANGUAGE, Language.PERSIAN.code)
+            AppCompatDelegate.setApplicationLocales(Language.PERSIAN.toLocaleList())
+        }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             Api33.prepareMigration(context)
         } else {

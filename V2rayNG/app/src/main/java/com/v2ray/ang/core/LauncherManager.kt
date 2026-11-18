@@ -18,10 +18,15 @@ import com.v2ray.ang.service.CoreRootService
 import com.v2ray.ang.service.CoreVpnService
 import com.v2ray.ang.util.LogUtil
 import com.v2ray.ang.util.Utils
+import com.v2ray.ang.ui.wallet.WalletStore
 
 object LauncherManager {
 
     fun startServiceFromToggle(context: Context): Boolean {
+        if (!WalletStore.hasActiveSubscription(context)) {
+            context.toast("اعتبار شما به پایان رسیده است")
+            return false
+        }
         if (MmkvManager.getSelectServer().isNullOrEmpty()) {
             context.toast(R.string.app_tile_first_use)
             return false
@@ -38,6 +43,11 @@ object LauncherManager {
 
     fun startService(context: Context, guid: String? = null) {
         LogUtil.i(AppConfig.TAG, "LauncherManager: startService from ${context::class.java.simpleName}")
+
+        if (!WalletStore.hasActiveSubscription(context)) {
+            context.toast("اعتبار شما به پایان رسیده است")
+            return
+        }
 
         if (guid != null) {
             MmkvManager.setSelectServer(guid)
