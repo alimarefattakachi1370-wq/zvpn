@@ -1,26 +1,25 @@
 package com.v2ray.ang.ui.wallet
 
 import android.content.Context
+import org.json.JSONArray
+import org.json.JSONObject
 import java.util.Calendar
 
-/** Demo-only local wallet. Replace with real backend calls later. */
-data class Plan(val days: Int, val price: Long, val title: String)
+/** Local cache of the server state (wallet / subscription). The server is the source of truth. */
+data class Plan(val code: String, val days: Int, val price: Long, val title: String)
 
 data class WalletTx(val time: Long, val title: String, val amount: Long)
 
 object WalletStore {
     private const val DAY = 24L * 60 * 60 * 1000
 
-    val plans = listOf(
-        Plan(30, 120_000, "اشتراک ۳۰ روزه"),
-        Plan(90, 300_000, "اشتراک ۹۰ روزه"),
-        Plan(180, 540_000, "اشتراک ۱۸۰ روزه"),
-    )
+    private fun sp(c: Context) = c.getSharedPreferences("zvpn_cache", Context.MODE_PRIVATE)
 
-    private fun sp(c: Context) = c.getSharedPreferences("zvpn_wallet", Context.MODE_PRIVATE)
+    fun balance(c: Context): Long = sp(c).getLong("bal", 0L)
 
-    fun balance(c: Context): Long = sp(c).getLong("balance", 0L)
-    fun expiry(c: Context): Long = sp(c).getLong("expiry", 0L)
+    /** Subscription end in the device clock (ms); 0 = none. */
+    fun expiry(c: Context): Long = sp(c).getLong("exp", 0L)
+
     fun hasActiveSubscription(c: Context): Boolean = expiry(c) > System.currentTimeMillis()
 
     fun daysLeft(c: Context): Long {
@@ -28,46 +27,48 @@ object WalletStore {
         return if (left <= 0) 0 else (left + DAY - 1) / DAY
     }
 
-    fun history(c: Context): List<WalletTx> {
-        val raw = sp(c).getString("history", "") ?: ""
-        return raw.split("\n").mapNotNull { line ->
-            val p = line.split("|")
-            if (p.size == 3) {
-                val t = p[0].toLongOrNull()
-                val a = p[2].toLongOrNull()
-                if (t != null && a != null) WalletTx(t, p[1], a) else null
-            } else null
+    fun clearExpiry(c: Context) {
+        sp(c).edit().putLong("exp", 0L).apply()
+    }
+
+    fun plans(c: Context): List<Plan> = try {
+        val arr = JSONArray(sp(c).getString("plans", "[]") ?: "[]")
+        (0 until arr.length()).map {
+            val o = arr.getJSONObject(it)
+            Plan(o.getString("code"), o.getInt("days"), o.getLong("price"), o.getString("title"))
         }
+    } catch (e: Exception) {
+        emptyList()
     }
 
-    private fun addHistory(c: Context, tx: WalletTx) {
-        val list = (listOf(tx) + history(c)).take(15)
-        sp(c).edit().putString("history", list.joinToString("\n") { "${it.time}|${it.title}|${it.amount}" }).apply()
+    fun history(c: Context): List<WalletTx> = try {
+        val arr = JSONArray(sp(c).getString("hist", "[]") ?: "[]")
+        (0 until arr.length()).map {
+            val o = arr.getJSONObject(it)
+            WalletTx(o.getLong("time_ms"), o.getString("title"), o.getLong("amount"))
+        }
+    } catch (e: Exception) {
+        emptyList()
     }
 
-    fun topUp(c: Context, amount: Long) {
-        sp(c).edit().putLong("balance", balance(c) + amount).apply()
-        addHistory(c, WalletTx(System.currentTimeMillis(), "شارژ کیف پول", amount))
-    }
-
-    /** Returns false when the balance is not enough. */
-    fun buyPlan(c: Context, plan: Plan): Boolean {
-        val bal = balance(c)
-        if (bal < plan.price) return false
-        val now = System.currentTimeMillis()
-        val base = maxOf(now, expiry(c))
+    /** Store the state object returned by the server (register / state / payment / buy). */
+    fun save(c: Context, json: JSONObject) {
+        val offset = json.optLong("server_ms", System.currentTimeMillis()) - System.currentTimeMillis()
+        val until = json.optLong("sub_until_ms", 0L)
         sp(c).edit()
-            .putLong("balance", bal - plan.price)
-            .putLong("expiry", base + plan.days * DAY)
+            .putLong("bal", json.optLong("wallet", 0L))
+            .putLong("exp", if (until > 0) until - offset else 0L)
+            .putString("plans", (json.optJSONArray("plans") ?: JSONArray()).toString())
+            .putString("hist", (json.optJSONArray("history") ?: JSONArray()).toString())
             .apply()
-        addHistory(c, WalletTx(now, plan.title, -plan.price))
-        return true
     }
 }
 
 fun String.toFa(): String = map { if (it in '0'..'9') '۰' + (it - '0') else it }.joinToString("")
 
-fun Long.toToman(): String = String.format(java.util.Locale.US, "%,d", this).replace(',', '٬').toFa() + " تومان"
+fun Long.toFaNumber(): String = String.format(java.util.Locale.US, "%,d", this).replace(',', '٬').toFa()
+
+fun Long.toToman(): String = toFaNumber() + " تومان"
 
 fun jalaliDate(millis: Long, withTime: Boolean = false): String {
     val cal = Calendar.getInstance().apply { timeInMillis = millis }

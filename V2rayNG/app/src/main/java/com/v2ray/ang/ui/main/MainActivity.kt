@@ -23,6 +23,7 @@ import com.v2ray.ang.ui.base.HelperBaseComponentActivity
 import com.v2ray.ang.ui.wallet.WalletActivity
 import com.v2ray.ang.ui.wallet.WalletStore
 import com.v2ray.ang.zvpn.ServerApi
+import com.v2ray.ang.zvpn.ZvpnApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -50,6 +51,14 @@ class MainActivity : HelperBaseComponentActivity() {
     override fun onResume() {
         super.onResume()
         refreshKey++
+        lifecycleScope.launch {
+            try {
+                withContext(Dispatchers.IO) { ZvpnApi.refreshState(this@MainActivity) }
+                refreshKey++
+            } catch (e: Exception) {
+                // offline: keep showing the cached state
+            }
+        }
     }
 
     @Composable
