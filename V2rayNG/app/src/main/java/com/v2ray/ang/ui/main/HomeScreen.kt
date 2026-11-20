@@ -1,5 +1,8 @@
 package com.v2ray.ang.ui.main
 
+import android.net.TrafficStats
+import android.os.Process
+import android.os.SystemClock
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -45,6 +48,7 @@ import com.v2ray.ang.ui.wallet.WalletStore
 import com.v2ray.ang.ui.wallet.jalaliDate
 import com.v2ray.ang.ui.wallet.toFa
 import kotlinx.coroutines.delay
+import java.util.Locale
 
 @Composable
 fun HomeScreen(
@@ -180,6 +184,8 @@ fun HomeScreen(
                         StatusText("متصل شد", green, bold = true)
                         Spacer(Modifier.height(4.dp))
                         StatusText("برای قطع اتصال لمس کنید", MaterialTheme.colorScheme.onSurfaceVariant, size = 13)
+                        Spacer(Modifier.height(18.dp))
+                        SpeedRow()
                     }
                     disabled -> {
                         StatusText("حساب شما غیرفعال شده است", MaterialTheme.colorScheme.error, bold = true)
@@ -217,4 +223,86 @@ private fun StatusText(text: String, color: Color, bold: Boolean = false, size: 
         fontWeight = if (bold) FontWeight.Bold else FontWeight.Normal,
         textAlign = TextAlign.Center
     )
+}
+
+private fun readTx(uid: Int): Long {
+    val v = TrafficStats.getUidTxBytes(uid)
+    return if (v >= 0) v else TrafficStats.getTotalTxBytes().coerceAtLeast(0)
+}
+
+private fun readRx(uid: Int): Long {
+    val v = TrafficStats.getUidRxBytes(uid)
+    return if (v >= 0) v else TrafficStats.getTotalRxBytes().coerceAtLeast(0)
+}
+
+private fun fmtBytes(b: Long, perSecond: Boolean): String {
+    val suffix = if (perSecond) "/s" else ""
+    return when {
+        b >= 1_073_741_824L -> String.format(Locale.US, "%.2f GB%s", b / 1_073_741_824.0, suffix)
+        b >= 1_048_576L -> String.format(Locale.US, "%.1f MB%s", b / 1_048_576.0, suffix)
+        b >= 1024L -> String.format(Locale.US, "%.0f KB%s", b / 1024.0, suffix)
+        else -> "$b B$suffix"
+    }
+}
+
+@Composable
+private fun SpeedRow() {
+    var upSpeed by remember { mutableStateOf(0L) }
+    var downSpeed by remember { mutableStateOf(0L) }
+    var upTotal by remember { mutableStateOf(0L) }
+    var downTotal by remember { mutableStateOf(0L) }
+
+    LaunchedEffect(Unit) {
+        val uid = Process.myUid()
+        val tx0 = readTx(uid)
+        val rx0 = readRx(uid)
+        var lastTx = tx0
+        var lastRx = rx0
+        var lastT = SystemClock.elapsedRealtime()
+        while (true) {
+            delay(1000)
+            val t = SystemClock.elapsedRealtime()
+            val tx = readTx(uid)
+            val rx = readRx(uid)
+            val dt = (t - lastT).coerceAtLeast(1L)
+            upSpeed = ((tx - lastTx).coerceAtLeast(0L) * 1000L) / dt
+            downSpeed = ((rx - lastRx).coerceAtLeast(0L) * 1000L) / dt
+            upTotal = (tx - tx0).coerceAtLeast(0L)
+            downTotal = (rx - rx0).coerceAtLeast(0L)
+            lastTx = tx
+            lastRx = rx
+            lastT = t
+        }
+    }
+
+    CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(28.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            SpeedItem("\u2191", Color(0xFFF59E0B), upSpeed, upTotal)
+            SpeedItem("\u2193", Color(0xFF22C55E), downSpeed, downTotal)
+        }
+    }
+}
+
+@Composable
+private fun SpeedItem(arrow: String, color: Color, speed: Long, total: Long) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(arrow, color = color, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.width(4.dp))
+            Text(
+                fmtBytes(speed, true),
+                color = MaterialTheme.colorScheme.onSurface,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold
+            )
+        }
+        Text(
+            fmtBytes(total, false),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            fontSize = 12.sp
+        )
+    }
 }
