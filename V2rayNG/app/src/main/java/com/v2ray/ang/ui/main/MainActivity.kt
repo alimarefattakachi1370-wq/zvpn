@@ -25,6 +25,7 @@ import com.v2ray.ang.ui.wallet.WalletStore
 import com.v2ray.ang.zvpn.ServerApi
 import com.v2ray.ang.zvpn.ZvpnApi
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -36,6 +37,7 @@ class MainActivity : HelperBaseComponentActivity() {
 
     private var busy by mutableStateOf(false)
     private var refreshKey by mutableStateOf(0)
+    private var loggedIn by mutableStateOf(false)
 
     private val requestVpnPermission =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
@@ -44,20 +46,36 @@ class MainActivity : HelperBaseComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        loggedIn = ZvpnApi.isLoggedIn(this)
         mainViewModel.onAction(MainAction.Initialize)
         checkAndRequestPermission(PermissionType.POST_NOTIFICATIONS) {}
+        // keep wallet / subscription / account status fresh while the app is open
+        lifecycleScope.launch {
+            while (true) {
+                delay(60_000)
+                refreshState()
+            }
+        }
     }
 
     override fun onResume() {
         super.onResume()
+        loggedIn = ZvpnApi.isLoggedIn(this)
         refreshKey++
+        refreshState()
+    }
+
+    private fun refreshState() {
+        if (!ZvpnApi.isLoggedIn(this)) return
         lifecycleScope.launch {
             try {
                 withContext(Dispatchers.IO) { ZvpnApi.refreshState(this@MainActivity) }
-                refreshKey++
+            } catch (e: ZvpnApi.ApiException) {
+                if (e.code == "login") loggedIn = false
             } catch (e: Exception) {
                 // offline: keep showing the cached state
             }
+            refreshKey++
         }
     }
 
@@ -65,6 +83,13 @@ class MainActivity : HelperBaseComponentActivity() {
     override fun ScreenContent() {
         BackHandler { moveTaskToBack(false) }
         val state by mainViewModel.uiState.collectAsState()
+        if (!loggedIn) {
+            LoginScreen(onLoggedIn = {
+                loggedIn = true
+                refreshKey++
+            })
+            return
+        }
         HomeScreen(
             isRunning = state.isRunning,
             busy = busy,

@@ -30,6 +30,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -97,7 +98,10 @@ fun WalletScreen(onBack: () -> Unit) {
     val expiry = remember(version) { WalletStore.expiry(ctx) }
     val plans = remember(version) { WalletStore.plans(ctx) }
     val history = remember(version) { WalletStore.history(ctx) }
-    val active = expiry > now
+    val disabled = remember(version) { WalletStore.isDisabled(ctx) }
+    val disabledReason = remember(version) { WalletStore.disabledReason(ctx) }
+    val phone = remember(version) { WalletStore.phone(ctx) }
+    val active = !disabled && expiry > now
     val daysLeft = remember(version, now) { WalletStore.daysLeft(ctx) }
 
     fun load() {
@@ -108,6 +112,11 @@ fun WalletScreen(onBack: () -> Unit) {
                 val pending = withContext(Dispatchers.IO) { ZvpnApi.refreshState(ctx) }
                 payment = pending
             } catch (e: Exception) {
+                if (e is ZvpnApi.ApiException && e.code == "login") {
+                    Toast.makeText(ctx, e.message ?: "دوباره وارد شوید", Toast.LENGTH_LONG).show()
+                    onBack()
+                    return@launch
+                }
                 loadError = errorText(e)
             }
             version++
@@ -184,6 +193,21 @@ fun WalletScreen(onBack: () -> Unit) {
                             color = Color.White,
                             fontSize = 13.sp
                         )
+                    }
+                }
+
+                if (disabled) {
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
+                        shape = RoundedCornerShape(16.dp)
+                    ) {
+                        Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text("حساب شما غیرفعال شده است", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onErrorContainer)
+                            if (disabledReason.isNotEmpty()) {
+                                Text("علت: $disabledReason", fontSize = 13.sp, color = MaterialTheme.colorScheme.onErrorContainer)
+                            }
+                            Text("برای پیگیری با پشتیبانی تماس بگیرید.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onErrorContainer)
+                        }
                     }
                 }
 
@@ -319,7 +343,25 @@ fun WalletScreen(onBack: () -> Unit) {
                         }
                     }
                 }
-                Spacer(Modifier.height(24.dp))
+                Spacer(Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        if (phone.isNotEmpty()) "حساب: ${phone.toFa()}" else "",
+                        fontSize = 13.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    TextButton(onClick = {
+                        scope.launch {
+                            withContext(Dispatchers.IO) { ZvpnApi.logout(ctx) }
+                            onBack()
+                        }
+                    }) { Text("خروج از حساب", color = MaterialTheme.colorScheme.error) }
+                }
+                Spacer(Modifier.height(16.dp))
             }
         }
     }

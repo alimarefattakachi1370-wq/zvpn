@@ -65,7 +65,9 @@ fun HomeScreen(
     }
     val expiry = remember(refreshKey, now) { WalletStore.expiry(ctx) }
     val daysLeft = remember(refreshKey, now) { WalletStore.daysLeft(ctx) }
-    val active = expiry > now
+    val disabled = remember(refreshKey, now) { WalletStore.isDisabled(ctx) }
+    val reason = remember(refreshKey, now) { WalletStore.disabledReason(ctx) }
+    val active = !disabled && expiry > now
 
     LaunchedEffect(isRunning, active) {
         if (isRunning && !active) onExpired()
@@ -112,7 +114,7 @@ fun HomeScreen(
                             color = MaterialTheme.colorScheme.onPrimaryContainer
                         )
                         Text(
-                            if (active) "${daysLeft.toString().toFa()} روز اعتبار باقی مانده" else "بدون اعتبار",
+                            if (disabled) "حساب غیرفعال" else if (active) "${daysLeft.toString().toFa()} روز اعتبار باقی مانده" else "بدون اعتبار",
                             fontSize = 12.sp,
                             color = MaterialTheme.colorScheme.onPrimaryContainer
                         )
@@ -179,6 +181,13 @@ fun HomeScreen(
                         Spacer(Modifier.height(4.dp))
                         StatusText("برای قطع اتصال لمس کنید", MaterialTheme.colorScheme.onSurfaceVariant, size = 13)
                     }
+                    disabled -> {
+                        StatusText("حساب شما غیرفعال شده است", MaterialTheme.colorScheme.error, bold = true)
+                        if (reason.isNotEmpty()) {
+                            Spacer(Modifier.height(6.dp))
+                            StatusText("علت: $reason", MaterialTheme.colorScheme.onSurfaceVariant, size = 14, modifier = Modifier.padding(horizontal = 32.dp))
+                        }
+                    }
                     !active -> StatusText("اعتبار شما به پایان رسیده", MaterialTheme.colorScheme.error, bold = true)
                     else -> StatusText("برای اتصال لمس کنید", MaterialTheme.colorScheme.onSurfaceVariant)
                 }
@@ -199,9 +208,10 @@ fun HomeScreen(
 }
 
 @Composable
-private fun StatusText(text: String, color: Color, bold: Boolean = false, size: Int = 17) {
+private fun StatusText(text: String, color: Color, bold: Boolean = false, size: Int = 17, modifier: Modifier = Modifier) {
     Text(
         text,
+        modifier = modifier,
         color = color,
         fontSize = size.sp,
         fontWeight = if (bold) FontWeight.Bold else FontWeight.Normal,

@@ -1,12 +1,10 @@
 package com.v2ray.ang.zvpn
 
 import android.content.Context
-import android.provider.Settings
 import com.v2ray.ang.ui.wallet.WalletStore
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
-import java.util.UUID
 
 /** Client for the ZVPN backend (app.php). All functions are blocking: call them from Dispatchers.IO. */
 object ZvpnApi {
@@ -28,17 +26,6 @@ object ZvpnApi {
     )
 
     private fun sp(c: Context) = c.getSharedPreferences("zvpn_auth", Context.MODE_PRIVATE)
-
-    private fun deviceId(c: Context): String {
-        val id = Settings.Secure.getString(c.contentResolver, Settings.Secure.ANDROID_ID) ?: ""
-        if (id.length >= 8) return id
-        var gen = sp(c).getString("device_id", null)
-        if (gen == null) {
-            gen = UUID.randomUUID().toString().replace("-", "")
-            sp(c).edit().putString("device_id", gen).apply()
-        }
-        return gen
-    }
 
     private fun request(action: String, method: String, body: JSONObject?, token: String?, query: String): Pair<Int, String> {
         val conn = URL("$BASE_URL/app.php?a=$action$query").openConnection() as HttpURLConnection
@@ -75,23 +62,47 @@ object ZvpnApi {
         return json
     }
 
-    private fun register(c: Context): String {
-        val res = request("register", "POST", JSONObject().put("device_id", deviceId(c)), null, "")
-        val json = parse(res.first, res.second)
-        val token = json.getString("token")
-        sp(c).edit().putString("token", token).apply()
-        WalletStore.save(c, json)
-        return token
+    fun isLoggedIn(c: Context): Boolean = sp(c).getString("token", null) != null
+
+    private fun token(c: Context): String =
+        sp(c).getString("token", null) ?: throw ApiException(401, "ابتدا وارد حساب شوید", "login")
+
+    private fun logoutLocal(c: Context) {
+        sp(c).edit().remove("token").apply()
+        WalletStore.clearAll(c)
     }
 
-    private fun token(c: Context): String = sp(c).getString("token", null) ?: register(c)
+    private fun sessionExpired(c: Context): ApiException {
+        logoutLocal(c)
+        return ApiException(401, "نشست منقضی شده؛ دوباره وارد شوید", "login")
+    }
 
     private fun call(c: Context, action: String, method: String = "GET", body: JSONObject? = null, query: String = ""): JSONObject {
-        var res = request(action, method, body, token(c), query)
-        if (res.first == 401) {
-            res = request(action, method, body, register(c), query)
-        }
+        val res = request(action, method, body, token(c), query)
+        if (res.first == 401) throw sessionExpired(c)
         return parse(res.first, res.second)
+    }
+
+    /** Sends the login code by SMS. Returns the seconds to wait before a resend. */
+    fun requestOtp(phone: String): Int {
+        val res = request("otp_send", "POST", JSONObject().put("phone", phone), null, "")
+        return parse(res.first, res.second).optInt("wait", 60)
+    }
+
+    fun verifyOtp(c: Context, phone: String, code: String) {
+        val res = request("otp_verify", "POST", JSONObject().put("phone", phone).put("code", code), null, "")
+        val json = parse(res.first, res.second)
+        sp(c).edit().putString("token", json.getString("token")).apply()
+        WalletStore.save(c, json)
+    }
+
+    fun logout(c: Context) {
+        try {
+            call(c, "logout")
+        } catch (e: Exception) {
+            // ignore: we sign out locally anyway
+        }
+        logoutLocal(c)
     }
 
     private fun paymentOf(o: JSONObject) = Payment(
@@ -133,8 +144,8 @@ object ZvpnApi {
 
     /** Returns the vpn links (text) for users with an active subscription. */
     fun fetchConfig(c: Context): String {
-        var res = request("config", "GET", null, token(c), "")
-        if (res.first == 401) res = request("config", "GET", null, register(c), "")
+        val res = request("config", "GET", null, token(c), "")
+        if (res.first == 401) throw sessionExpired(c)
         if (res.first == 200) return res.second
         val err = try {
             parse(res.first, res.second)

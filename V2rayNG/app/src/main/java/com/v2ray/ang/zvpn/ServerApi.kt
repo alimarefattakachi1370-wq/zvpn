@@ -24,6 +24,8 @@ object ServerApi {
         } catch (e: ZvpnApi.ApiException) {
             result = if (e.code == "expired" || e.httpCode == 402) {
                 Result(false, "اعتبار شما به پایان رسیده است")
+            } else if (e.code == "disabled" || e.code == "login") {
+                Result(false, e.message ?: "دسترسی مجاز نیست")
             } else {
                 Result(false, e.message ?: "خطا در دریافت کانفیگ")
             }

@@ -20,7 +20,17 @@ object WalletStore {
     /** Subscription end in the device clock (ms); 0 = none. */
     fun expiry(c: Context): Long = sp(c).getLong("exp", 0L)
 
-    fun hasActiveSubscription(c: Context): Boolean = expiry(c) > System.currentTimeMillis()
+    fun phone(c: Context): String = sp(c).getString("phone", "") ?: ""
+
+    fun isDisabled(c: Context): Boolean = sp(c).getBoolean("disabled", false)
+
+    fun disabledReason(c: Context): String = sp(c).getString("dis_reason", "") ?: ""
+
+    fun hasActiveSubscription(c: Context): Boolean = !isDisabled(c) && expiry(c) > System.currentTimeMillis()
+
+    fun clearAll(c: Context) {
+        sp(c).edit().clear().apply()
+    }
 
     fun daysLeft(c: Context): Long {
         val left = expiry(c) - System.currentTimeMillis()
@@ -56,6 +66,9 @@ object WalletStore {
         val offset = json.optLong("server_ms", System.currentTimeMillis()) - System.currentTimeMillis()
         val until = json.optLong("sub_until_ms", 0L)
         sp(c).edit()
+            .putString("phone", json.optString("phone", ""))
+            .putBoolean("disabled", json.optBoolean("disabled", false))
+            .putString("dis_reason", json.optString("disabled_reason", ""))
             .putLong("bal", json.optLong("wallet", 0L))
             .putLong("exp", if (until > 0) until - offset else 0L)
             .putString("plans", (json.optJSONArray("plans") ?: JSONArray()).toString())
