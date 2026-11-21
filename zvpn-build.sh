@@ -7,8 +7,17 @@ cd ~/v2rayNG || { echo "پوشه ~/v2rayNG پیدا نشد"; exit 1; }
 DEST=~/storage/downloads
 [ -d "$DEST" ] || DEST=/sdcard/Download
 
+# اجازهٔ نصب بروزرسانی در اپ کاربر (یک‌بار، بدون تکرار)
+M=V2rayNG/app/src/main/AndroidManifest.xml
+if [ -f "$M" ] && ! grep -q REQUEST_INSTALL_PACKAGES "$M"; then
+  sed -i '0,/<application/s//<uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" \/>\n    <application/' "$M"
+  echo "permission added to user manifest"
+fi
+gh secret list 2>/dev/null | grep -q ZVPN_UPDATE_KEY || echo "⚠️ ZVPN_UPDATE_KEY هنوز ست نشده؛ آپلود روی هاست انجام نمی‌شود"
+gh secret list 2>/dev/null | grep -q DEBUG_KEYSTORE_B64 || echo "⚠️ DEBUG_KEYSTORE_B64 هنوز ست نشده؛ بروزرسانی روی نسخهٔ نصب‌شده کار نمی‌کند"
+
 git add -A
-git commit -m "ZVPN: speed meter, admin banner color fix, actions update" || true
+git commit -m "ZVPN: in-app update, host upload, card number fix" || true
 git push || { echo "push ناموفق بود"; exit 1; }
 
 SHA=$(git rev-parse HEAD)

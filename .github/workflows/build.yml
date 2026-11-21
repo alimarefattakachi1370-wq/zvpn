@@ -1,5 +1,9 @@
 name: Build APKs
 on: [workflow_dispatch, push]
+
+env:
+  HOST_URL: https://zdot.ir/zvpn
+
 jobs:
   build-user:
     name: User app (ZVPN)
@@ -12,6 +16,15 @@ jobs:
           java-version: 21
       - name: Accept Android licenses
         run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses || true
+      - name: Fixed signing key (so in-app updates install over the old app)
+        env:
+          KS: ${{ secrets.DEBUG_KEYSTORE_B64 }}
+        run: |
+          if [ -n "$KS" ]; then mkdir -p ~/.android; echo "$KS" | base64 -d > ~/.android/debug.keystore; else echo "::warning::DEBUG_KEYSTORE_B64 secret not set"; fi
+      - name: Build number
+        run: |
+          mkdir -p V2rayNG/app/src/main/assets
+          echo ${{ github.run_number }} > V2rayNG/app/src/main/assets/zvpn_build.txt
       - name: Build (arm64 only, small APK)
         working-directory: V2rayNG
         run: |
@@ -21,6 +34,16 @@ jobs:
         with:
           name: zvpn-apk
           path: V2rayNG/app/build/outputs/apk/**/*.apk
+      - name: Publish to host (download folder)
+        env:
+          KEY: ${{ secrets.ZVPN_UPDATE_KEY }}
+          NOTES: ${{ github.event.head_commit.message }}
+        run: |
+          [ -z "$KEY" ] && { echo "::warning::ZVPN_UPDATE_KEY not set, skipping upload"; exit 0; }
+          APK=$(find V2rayNG/app/build/outputs/apk -name '*.apk' | head -n1)
+          curl -fsS -m 900 -H "X-Update-Key: $KEY" \
+            -F app=user -F build=${{ github.run_number }} -F version=1.0.${{ github.run_number }} \
+            --form-string "notes=$NOTES" -F "apk=@$APK" "$HOST_URL/upload_apk.php"
 
   build-admin:
     name: Admin app (ZVPN Admin)
@@ -33,6 +56,15 @@ jobs:
           java-version: 21
       - name: Accept Android licenses
         run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses || true
+      - name: Fixed signing key (so in-app updates install over the old app)
+        env:
+          KS: ${{ secrets.DEBUG_KEYSTORE_B64 }}
+        run: |
+          if [ -n "$KS" ]; then mkdir -p ~/.android; echo "$KS" | base64 -d > ~/.android/debug.keystore; else echo "::warning::DEBUG_KEYSTORE_B64 secret not set"; fi
+      - name: Build number
+        run: |
+          mkdir -p ZvpnAdmin/app/src/main/assets
+          echo ${{ github.run_number }} > ZvpnAdmin/app/src/main/assets/zvpn_build.txt
       - name: Build
         working-directory: ZvpnAdmin
         run: |
@@ -42,3 +74,13 @@ jobs:
         with:
           name: zvpn-admin-apk
           path: ZvpnAdmin/app/build/outputs/apk/debug/*.apk
+      - name: Publish to host (download folder)
+        env:
+          KEY: ${{ secrets.ZVPN_UPDATE_KEY }}
+          NOTES: ${{ github.event.head_commit.message }}
+        run: |
+          [ -z "$KEY" ] && { echo "::warning::ZVPN_UPDATE_KEY not set, skipping upload"; exit 0; }
+          APK=$(find ZvpnAdmin/app/build/outputs/apk/debug -name '*.apk' | head -n1)
+          curl -fsS -m 900 -H "X-Update-Key: $KEY" \
+            -F app=admin -F build=${{ github.run_number }} -F version=1.0.${{ github.run_number }} \
+            --form-string "notes=$NOTES" -F "apk=@$APK" "$HOST_URL/upload_apk.php"

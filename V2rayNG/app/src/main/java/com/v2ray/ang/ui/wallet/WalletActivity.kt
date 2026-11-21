@@ -405,13 +405,16 @@ private fun PaymentCard(
 
             val digits = pay.cardNumber.filter { it.isDigit() }
             Text("شماره کارت", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text(
-                digits.chunked(4).joinToString("  ").toFa(),
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Medium,
-                modifier = Modifier.fillMaxWidth(),
-                textAlign = TextAlign.Center
-            )
+            CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+                Text(
+                    digits.chunked(4).joinToString("  "),
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Medium,
+                    letterSpacing = 1.sp,
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = TextAlign.Center
+                )
+            }
             OutlinedButton(
                 onClick = { onCopy("card", digits) },
                 modifier = Modifier.fillMaxWidth()

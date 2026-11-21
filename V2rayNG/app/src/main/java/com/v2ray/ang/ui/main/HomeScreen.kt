@@ -1,6 +1,8 @@
 package com.v2ray.ang.ui.main
 
 import android.net.TrafficStats
+import com.v2ray.ang.zvpn.UpdateButton
+import com.v2ray.ang.zvpn.ZvpnApi
 import android.os.Process
 import android.os.SystemClock
 import androidx.compose.foundation.background
@@ -126,6 +128,11 @@ fun HomeScreen(
                 }
                 Text("ZVPN", fontWeight = FontWeight.Bold, fontSize = 20.sp, color = green)
             }
+
+            UpdateButton(
+                ZvpnApi.BASE_URL, "user",
+                Modifier.align(Alignment.BottomCenter).padding(bottom = 8.dp)
+            )
 
             // Center: connect button
             Column(

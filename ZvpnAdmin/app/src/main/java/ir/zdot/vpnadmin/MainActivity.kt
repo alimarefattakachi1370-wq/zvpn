@@ -76,7 +76,10 @@ private fun AppRoot() {
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Text("ZVPN مدیر", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-            TextButton(onClick = { prefs.adminToken = null; loggedIn = false }) { Text("خروج") }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                UpdateButton(prefs.baseUrl, "admin")
+                TextButton(onClick = { prefs.adminToken = null; loggedIn = false }) { Text("خروج") }
+            }
         }
 
         Box(Modifier.weight(1f)) {
