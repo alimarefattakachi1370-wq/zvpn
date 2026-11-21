@@ -14,6 +14,8 @@ import android.os.Build
 import android.provider.Settings
 import android.widget.Toast
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.ui.draw.shadow
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -240,8 +242,10 @@ fun UpdateButton(baseUrl: String, app: String, modifier: Modifier = Modifier) {
     }
     Box(
         modifier = modifier
+            .shadow(12.dp, RoundedCornerShape(50), ambientColor = Color(0xFF22C55E), spotColor = Color(0xFF22C55E))
             .clip(RoundedCornerShape(50))
-            .background(Brush.linearGradient(listOf(Color(0xFF22C55E), Color(0xFF047857))))
+            .background(Brush.verticalGradient(listOf(Color(0xFF5DE08F), Color(0xFF16A34A), Color(0xFF065F46))))
+            .border(1.dp, Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.5f), Color.Black.copy(alpha = 0.35f))), RoundedCornerShape(50))
             .clickable(onClick = check)
             .padding(horizontal = 24.dp, vertical = 10.dp),
         contentAlignment = Alignment.Center

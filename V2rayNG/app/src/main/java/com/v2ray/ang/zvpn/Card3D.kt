@@ -15,6 +15,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 /** 3D card: light from the top, glossy border, deep shadow. */
@@ -41,3 +42,14 @@ fun Card3D(
         content = content
     )
 }
+
+/** Raised 3D surface: top light, glossy bevel border, deep shadow. */
+fun Modifier.raised3D(shape: Shape, base: Color, elevation: Dp = 12.dp): Modifier = this
+    .shadow(elevation, shape, ambientColor = Color.Black, spotColor = Color.Black)
+    .clip(shape)
+    .background(Brush.verticalGradient(listOf(lerp(base, Color.White, 0.16f), base, lerp(base, Color.Black, 0.22f))))
+    .border(
+        1.dp,
+        Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.40f), Color.White.copy(alpha = 0.04f), Color.Black.copy(alpha = 0.35f))),
+        shape
+    )

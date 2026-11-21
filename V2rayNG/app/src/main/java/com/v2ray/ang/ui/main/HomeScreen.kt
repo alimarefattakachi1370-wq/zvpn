@@ -7,6 +7,9 @@ import com.v2ray.ang.zvpn.ZvpnApi
 import android.os.Process
 import android.os.SystemClock
 import androidx.compose.foundation.background
+import com.v2ray.ang.zvpn.raised3D
+import androidx.compose.foundation.border
+import androidx.compose.ui.draw.shadow
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -101,8 +104,7 @@ fun HomeScreen(
             ) {
                 Row(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(MaterialTheme.colorScheme.primaryContainer)
+                        .raised3D(RoundedCornerShape(16.dp), MaterialTheme.colorScheme.primaryContainer, 14.dp)
                         .clickable(onClick = onWalletClick)
                         .padding(horizontal = 14.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically
@@ -151,7 +153,7 @@ fun HomeScreen(
                         )
                     }
                     val circleBrush = if (enabled || isRunning || busy) {
-                        Brush.linearGradient(listOf(Color(0xFF22C55E), Color(0xFF047857)))
+                        Brush.linearGradient(listOf(Color(0xFF5DE08F), Color(0xFF16A34A), Color(0xFF065F46)))
                     } else {
                         Brush.linearGradient(
                             listOf(
@@ -163,11 +165,31 @@ fun HomeScreen(
                     Box(
                         modifier = Modifier
                             .size(188.dp)
+                            .shadow(
+                                if (isRunning) 30.dp else 22.dp, CircleShape,
+                                ambientColor = if (enabled || isRunning) green else Color.Black,
+                                spotColor = if (enabled || isRunning) green else Color.Black
+                            )
                             .clip(CircleShape)
                             .background(circleBrush)
+                            .border(
+                                3.dp,
+                                Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.55f), Color.White.copy(alpha = 0.05f), Color.Black.copy(alpha = 0.45f))),
+                                CircleShape
+                            )
                             .clickable(enabled = enabled, onClick = onConnectClick),
                         contentAlignment = Alignment.Center
                     ) {
+                        // glossy highlight
+                        Box(
+                            Modifier
+                                .align(Alignment.TopCenter)
+                                .padding(top = 10.dp)
+                                .fillMaxWidth(0.6f)
+                                .height(64.dp)
+                                .clip(RoundedCornerShape(50))
+                                .background(Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.38f), Color.Transparent)))
+                        )
                         if (busy) {
                             CircularProgressIndicator(color = Color.White, modifier = Modifier.size(64.dp))
                         } else {
@@ -297,7 +319,12 @@ private fun SpeedRow() {
 
 @Composable
 private fun SpeedItem(arrow: String, color: Color, speed: Long, total: Long) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier
+            .raised3D(RoundedCornerShape(14.dp), MaterialTheme.colorScheme.surfaceContainerHigh, 10.dp)
+            .padding(horizontal = 14.dp, vertical = 8.dp)
+    ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(arrow, color = color, fontSize = 20.sp, fontWeight = FontWeight.Bold)
             Spacer(Modifier.width(4.dp))
