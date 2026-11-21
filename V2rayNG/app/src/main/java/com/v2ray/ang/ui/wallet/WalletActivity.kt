@@ -57,6 +57,10 @@ import androidx.compose.ui.unit.sp
 import com.v2ray.ang.ui.base.BaseComponentActivity
 import com.v2ray.ang.ui.compose.AppTopBar
 import com.v2ray.ang.zvpn.ZvpnApi
+import com.v2ray.ang.zvpn.Card3D
+import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.draw.shadow
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import com.v2ray.ang.zvpn.zvpnBackground
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -165,6 +169,7 @@ fun WalletScreen(onBack: () -> Unit) {
     Scaffold(
         modifier = Modifier.background(zvpnBackground()),
         containerColor = Color.Transparent,
+        contentColor = MaterialTheme.colorScheme.onBackground,
         contentWindowInsets = WindowInsets(0),
         topBar = { AppTopBar(title = "کیف پول", onBackClick = onBack) }
     ) { inner ->
@@ -200,7 +205,7 @@ fun WalletScreen(onBack: () -> Unit) {
                 }
 
                 if (disabled) {
-                    Card(
+                    Card3D(
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
                         shape = RoundedCornerShape(16.dp)
                     ) {
@@ -257,7 +262,16 @@ fun WalletScreen(onBack: () -> Unit) {
                         label = { Text("مبلغ دلخواه (تومان)") },
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        modifier = Modifier.fillMaxWidth()
+                        shape = RoundedCornerShape(14.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                            focusedBorderColor = MaterialTheme.colorScheme.primary,
+                            unfocusedBorderColor = Color.White.copy(alpha = 0.18f),
+                            focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                            unfocusedTextColor = MaterialTheme.colorScheme.onSurface
+                        ),
+                        modifier = Modifier.fillMaxWidth().shadow(8.dp, RoundedCornerShape(14.dp), ambientColor = Color.Black, spotColor = Color.Black)
                     )
                     Button(
                         enabled = !busy,
@@ -287,7 +301,7 @@ fun WalletScreen(onBack: () -> Unit) {
                 Spacer(Modifier.height(4.dp))
                 Text("خرید اشتراک", fontSize = 17.sp, fontWeight = FontWeight.Bold)
                 plans.forEach { plan ->
-                    Card(
+                    Card3D(
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
                         shape = RoundedCornerShape(16.dp)
                     ) {
@@ -379,7 +393,7 @@ private fun PaymentCard(
 ) {
     val mm = (remainingSec / 60).toString().padStart(2, '0')
     val ss = (remainingSec % 60).toString().padStart(2, '0')
-    Card(
+    Card3D(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
         shape = RoundedCornerShape(20.dp)
     ) {
@@ -444,16 +458,29 @@ private fun PaymentCard(
 
 @Composable
 private fun AmountChip(text: String, selected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    val shape = RoundedCornerShape(12.dp)
+    val shape = RoundedCornerShape(14.dp)
+    val base = MaterialTheme.colorScheme.surfaceContainerHigh
+    val brush = if (selected) Brush.verticalGradient(listOf(Color(0xFF34D673), Color(0xFF16A34A), Color(0xFF047857)))
+    else Brush.verticalGradient(listOf(lerp(base, Color.White, 0.14f), base, lerp(base, Color.Black, 0.18f)))
     Box(
         modifier = modifier
+            .shadow(if (selected) 14.dp else 8.dp, shape, ambientColor = Color.Black, spotColor = Color.Black)
             .clip(shape)
-            .background(if (selected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent)
-            .border(1.dp, if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant, shape)
+            .background(brush)
+            .border(
+                1.dp,
+                Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.40f), Color.White.copy(alpha = 0.04f), Color.Black.copy(alpha = 0.35f))),
+                shape
+            )
             .clickable(onClick = onClick)
-            .padding(vertical = 13.dp),
+            .padding(vertical = 15.dp),
         contentAlignment = Alignment.Center
     ) {
-        Text(text, fontSize = 14.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal)
+        Text(
+            text,
+            fontSize = 15.sp,
+            fontWeight = FontWeight.Bold,
+            color = if (selected) Color.White else MaterialTheme.colorScheme.onSurface
+        )
     }
 }
