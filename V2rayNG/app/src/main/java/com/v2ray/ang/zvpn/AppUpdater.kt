@@ -6,31 +6,27 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageInstaller
-import android.content.pm.Signature
-import android.content.pm.PackageManager
 import android.content.pm.PackageInfo
+import android.content.pm.PackageManager
+import android.content.pm.Signature
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
-import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.ui.draw.shadow
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -39,18 +35,25 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.io.File
-import java.security.MessageDigest
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
+import java.security.MessageDigest
 import java.util.Locale
 
 /** Self-update: checks update.php on the host, downloads the APK and hands it to the system installer. */
@@ -59,6 +62,33 @@ object AppUpdater {
 
     /** Last install failure (full text), shown in a dialog by UpdateButton. */
     var lastError by mutableStateOf<String?>(null)
+
+    private const val ACTION = "com.v2ray.ang.zvpn.UPDATE_RESULT"
+    private var receiver: BroadcastReceiver? = null
+
+    /** Build number written into assets/zvpn_build.txt by the GitHub workflow. */
+    fun currentBuild(ctx: Context): Int = try {
+        ctx.assets.open("zvpn_build.txt").bufferedReader().use { it.readText().trim().toInt() }
+    } catch (e: Exception) {
+        0
+    }
+
+    /** e.g. "1.0.23" (same scheme the workflow publishes). */
+    fun versionName(ctx: Context): String {
+        val b = currentBuild(ctx)
+        return if (b > 0) "1.0.$b" else "dev"
+    }
+
+    fun canInstall(ctx: Context): Boolean =
+        Build.VERSION.SDK_INT < 26 || ctx.applicationContext.packageManager.canRequestPackageInstalls()
+
+    fun openInstallSettings(ctx: Context) {
+        val app = ctx.applicationContext
+        app.startActivity(
+            Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:${app.packageName}"))
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        )
+    }
 
     private fun certHash(sigs: Array<Signature>?): String {
         if (sigs == null || sigs.isEmpty()) return "?"
@@ -89,7 +119,7 @@ object AppUpdater {
             val b = certHash(sigsOf(neu))
             if (a != "?" && b != "?" && a != b) {
                 return "امضای نسخهٔ جدید ($b) با نسخهٔ نصب‌شده ($a) فرق دارد.\n" +
-                    "یک بار این برنامه را پاک کن و ZVPN.apk را از پوشهٔ Download نصب کن؛ از آن به بعد بروزرسانی کار می‌کند."
+                    "یک بار این برنامه را پاک کن و فایل APK آن را از پوشهٔ Download نصب کن؛ از آن به بعد بروزرسانی کار می‌کند."
             }
             if (versionOf(neu) < versionOf(cur)) {
                 return "شمارهٔ نسخهٔ APK جدید (${versionOf(neu)}) از نسخهٔ نصب‌شده (${versionOf(cur)}) کمتر است."
@@ -98,16 +128,6 @@ object AppUpdater {
         } catch (e: Exception) {
             null
         }
-    }
-
-    private const val ACTION = "com.v2ray.ang.zvpn.UPDATE_RESULT"
-    private var receiver: BroadcastReceiver? = null
-
-    /** Build number written into assets/zvpn_build.txt by the GitHub workflow. */
-    fun currentBuild(ctx: Context): Int = try {
-        ctx.assets.open("zvpn_build.txt").bufferedReader().use { it.readText().trim().toInt() }
-    } catch (e: Exception) {
-        0
     }
 
     /** Blocking. Returns null when the server is unreachable or nothing was published yet. */
@@ -126,33 +146,37 @@ object AppUpdater {
         }
     }
 
-    /** Blocking. Downloads the APK into the cache dir. */
-    fun download(ctx: Context, info: Info, onProgress: (Int) -> Unit): File {
+    /** Blocking. Downloads the APK into the cache dir; onProgress(done, total, bytesPerSecond). */
+    fun download(ctx: Context, info: Info, onProgress: (Long, Long, Long) -> Unit): File {
         val out = File(ctx.cacheDir, "zvpn-update.apk")
         val c = URL(info.url).openConnection() as HttpURLConnection
         c.connectTimeout = 20000
         c.readTimeout = 30000
+        c.setRequestProperty("Accept-Encoding", "identity")
         try {
             if (c.responseCode != 200) throw IOException("HTTP ${c.responseCode}")
             val total = if (c.contentLengthLong > 0) c.contentLengthLong else info.size
             c.inputStream.use { inp ->
                 out.outputStream().use { o ->
-                    val buf = ByteArray(64 * 1024)
+                    val buf = ByteArray(256 * 1024)
                     var done = 0L
-                    var last = -1
+                    var tickBytes = 0L
+                    var tickTime = System.currentTimeMillis()
+                    var speed = 0L
                     while (true) {
                         val n = inp.read(buf)
                         if (n < 0) break
                         o.write(buf, 0, n)
                         done += n
-                        if (total > 0) {
-                            val p = (done * 100 / total).toInt()
-                            if (p != last) {
-                                last = p
-                                onProgress(p)
-                            }
+                        val now = System.currentTimeMillis()
+                        if (now - tickTime >= 300) {
+                            speed = (done - tickBytes) * 1000 / (now - tickTime)
+                            tickBytes = done
+                            tickTime = now
+                            onProgress(done, total, speed)
                         }
                     }
+                    onProgress(done, if (total > 0) total else done, speed)
                 }
             }
         } finally {
@@ -161,17 +185,11 @@ object AppUpdater {
         return out
     }
 
-    /** Returns false when the user still has to allow "install unknown apps" (the settings page is opened). */
+    /** Returns false when "install unknown apps" is still not allowed for this app. */
     fun install(ctx: Context, apk: File): Boolean {
         val app = ctx.applicationContext
         diagnose(app, apk)?.let { lastError = it; return true }
-        if (Build.VERSION.SDK_INT >= 26 && !app.packageManager.canRequestPackageInstalls()) {
-            app.startActivity(
-                Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:${app.packageName}"))
-                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            )
-            return false
-        }
+        if (!canInstall(app)) return false
         registerReceiver(app)
         val installer = app.packageManager.packageInstaller
         val id = installer.createSession(PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL))
@@ -215,7 +233,9 @@ private sealed class UState {
     object Idle : UState()
     object Checking : UState()
     class Available(val info: AppUpdater.Info) : UState()
-    class Downloading(val progress: Int) : UState()
+    class NeedPermission(val info: AppUpdater.Info) : UState()
+    class Downloading(val done: Long, val total: Long, val speed: Long) : UState()
+    object Installing : UState()
     class Message(val text: String) : UState()
 }
 
@@ -228,18 +248,35 @@ fun UpdateButton(baseUrl: String, app: String, modifier: Modifier = Modifier) {
     var st by remember { mutableStateOf<UState>(UState.Idle) }
 
     val check: () -> Unit = {
-        if (st !is UState.Checking && st !is UState.Downloading) {
+        if (st is UState.Idle || st is UState.Message) {
             st = UState.Checking
             scope.launch {
                 val info = withContext(Dispatchers.IO) { runCatching { AppUpdater.fetch(baseUrl, app) }.getOrNull() }
                 st = when {
                     info == null -> UState.Message("اتصال به سرور بروزرسانی ممکن نشد یا هنوز نسخه‌ای منتشر نشده است.")
                     info.build > AppUpdater.currentBuild(ctx) -> UState.Available(info)
-                    else -> UState.Message("برنامه به‌روز است.")
+                    else -> UState.Message("برنامه به‌روز است.\nنسخهٔ فعلی: v${AppUpdater.versionName(ctx)}")
                 }
             }
         }
     }
+
+    fun startDownload(info: AppUpdater.Info) {
+        st = UState.Downloading(0, info.size, 0)
+        scope.launch {
+            try {
+                val f = withContext(Dispatchers.IO) {
+                    AppUpdater.download(ctx, info) { d, t, s -> st = UState.Downloading(d, t, s) }
+                }
+                st = UState.Installing
+                val started = withContext(Dispatchers.IO) { AppUpdater.install(ctx, f) }
+                st = if (started) UState.Idle else UState.NeedPermission(info)
+            } catch (e: Exception) {
+                st = UState.Message("خطا: ${e.message ?: e.javaClass.simpleName}")
+            }
+        }
+    }
+
     Box(
         modifier = modifier
             .shadow(12.dp, RoundedCornerShape(50), ambientColor = Color(0xFF22C55E), spotColor = Color(0xFF22C55E))
@@ -251,7 +288,7 @@ fun UpdateButton(baseUrl: String, app: String, modifier: Modifier = Modifier) {
         contentAlignment = Alignment.Center
     ) {
         Text(
-            if (st is UState.Checking) "در حال بررسی…" else "بروزرسانی برنامه",
+            "بروزرسانی برنامه",
             color = Color.White,
             fontWeight = FontWeight.Bold,
             fontSize = 14.sp
@@ -268,45 +305,96 @@ fun UpdateButton(baseUrl: String, app: String, modifier: Modifier = Modifier) {
     }
 
     when (val s = st) {
+        is UState.Checking -> AlertDialog(
+            onDismissRequest = {},
+            title = { Text("بررسی بروزرسانی") },
+            text = {
+                Column {
+                    Text("در حال بررسی نسخهٔ جدید…")
+                    Spacer(Modifier.height(12.dp))
+                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                }
+            },
+            confirmButton = {}
+        )
         is UState.Available -> AlertDialog(
             onDismissRequest = { st = UState.Idle },
             title = { Text("نسخهٔ جدید موجود است") },
             text = {
                 Column {
-                    Text("نسخه ${s.info.name}" + if (s.info.size > 0) " · ${mb(s.info.size)}" else "")
+                    Text("نسخهٔ فعلی: v${AppUpdater.versionName(ctx)}")
+                    Text("نسخهٔ جدید: v${s.info.name}" + if (s.info.size > 0) "  ·  ${mb(s.info.size)}" else "")
                     if (s.info.notes.isNotBlank()) {
                         Spacer(Modifier.height(8.dp))
-                        Text(s.info.notes)
+                        Text(s.info.notes, fontSize = 13.sp)
                     }
                 }
             },
             confirmButton = {
                 TextButton(onClick = {
-                    st = UState.Downloading(0)
-                    scope.launch {
-                        try {
-                            val f = withContext(Dispatchers.IO) {
-                                AppUpdater.download(ctx, s.info) { p -> st = UState.Downloading(p) }
-                            }
-                            val started = withContext(Dispatchers.IO) { AppUpdater.install(ctx, f) }
-                            st = if (started) UState.Idle
-                            else UState.Message("اجازهٔ «نصب برنامه‌های ناشناس» را برای این برنامه فعال کن، برگرد و دوباره بروزرسانی را بزن.")
-                        } catch (e: Exception) {
-                            st = UState.Message("خطا: ${e.message ?: e.javaClass.simpleName}")
-                        }
-                    }
+                    if (!AppUpdater.canInstall(ctx)) st = UState.NeedPermission(s.info) else startDownload(s.info)
                 }) { Text("بروزرسانی") }
+            },
+            dismissButton = { TextButton(onClick = { st = UState.Idle }) { Text("بعداً") } }
+        )
+        is UState.NeedPermission -> AlertDialog(
+            onDismissRequest = { st = UState.Idle },
+            title = { Text("فعال‌سازی اجازهٔ نصب (فقط یک بار)") },
+            text = {
+                Column {
+                    Text("چون این برنامه از گوگل پلی نصب نشده، اندروید باید اجازه بدهد خودش بروزرسانی را نصب کند:", fontSize = 14.sp)
+                    Spacer(Modifier.height(10.dp))
+                    Text("۱) روی «رفتن به تنظیمات» بزن.", fontSize = 14.sp)
+                    Text("۲) گزینهٔ «اجازه نصب از این منبع» (Allow from this source) را روشن کن.", fontSize = 14.sp)
+                    Text("۳) با دکمهٔ برگشت به برنامه برگرد و دوباره «بروزرسانی برنامه» را بزن.", fontSize = 14.sp)
+                    Spacer(Modifier.height(10.dp))
+                    Text(
+                        "بعد از فعال شدن، این راهنما دیگر نمایش داده نمی‌شود.",
+                        fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    AppUpdater.openInstallSettings(ctx)
+                    st = UState.Idle
+                }) { Text("رفتن به تنظیمات") }
             },
             dismissButton = { TextButton(onClick = { st = UState.Idle }) { Text("بعداً") } }
         )
         is UState.Downloading -> AlertDialog(
             onDismissRequest = {},
-            title = { Text("در حال دانلود…") },
+            title = { Text("در حال دانلود بروزرسانی…") },
             text = {
                 Column {
-                    LinearProgressIndicator(progress = { s.progress / 100f })
+                    if (s.total > 0) {
+                        val f = (s.done.toFloat() / s.total).coerceIn(0f, 1f)
+                        LinearProgressIndicator(progress = { f }, modifier = Modifier.fillMaxWidth())
+                        Spacer(Modifier.height(10.dp))
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("${(f * 100).toInt()}%", fontWeight = FontWeight.Bold)
+                            Text("${mb(s.done)} / ${mb(s.total)}", fontSize = 13.sp)
+                        }
+                    } else {
+                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                        Spacer(Modifier.height(10.dp))
+                        Text(mb(s.done), fontSize = 13.sp)
+                    }
+                    if (s.speed > 0) Text("سرعت: ${mb(s.speed)}/s", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Spacer(Modifier.height(8.dp))
-                    Text("${s.progress}%")
+                    Text("لطفاً صبر کن و برنامه را نبند.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            },
+            confirmButton = {}
+        )
+        is UState.Installing -> AlertDialog(
+            onDismissRequest = {},
+            title = { Text("آماده‌سازی نصب") },
+            text = {
+                Column {
+                    Text("دانلود تمام شد؛ در حال آماده‌سازی نصب…")
+                    Spacer(Modifier.height(12.dp))
+                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                 }
             },
             confirmButton = {}

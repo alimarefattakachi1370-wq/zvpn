@@ -1,5 +1,7 @@
 package com.v2ray.ang.ui.main
 
+import com.v2ray.ang.zvpn.AppUpdater
+import androidx.compose.foundation.Image
 import android.net.TrafficStats
 import com.v2ray.ang.zvpn.UpdateButton
 import com.v2ray.ang.zvpn.zvpnBackground
@@ -129,7 +131,14 @@ fun HomeScreen(
                         )
                     }
                 }
-                Text("ZVPN", fontWeight = FontWeight.Bold, fontSize = 20.sp, color = green)
+                Image(
+                    painter = painterResource(R.drawable.ic_logo),
+                    contentDescription = null,
+                    modifier = Modifier
+                        .size(56.dp)
+                        .shadow(10.dp, RoundedCornerShape(16.dp), ambientColor = Color.Black, spotColor = Color.Black)
+                        .clip(RoundedCornerShape(16.dp))
+                )
             }
 
             // Center: connect button
@@ -223,6 +232,13 @@ fun HomeScreen(
                     else -> StatusText("برای اتصال لمس کنید", MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
+
+            Text(
+                "v${AppUpdater.versionName(LocalContext.current)}",
+                fontSize = 11.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.align(Alignment.BottomStart).padding(start = 14.dp, bottom = 10.dp)
+            )
 
             Column(
                 modifier = Modifier

@@ -75,7 +75,13 @@ private fun AppRoot() {
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Text("ZVPN مدیر", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+            Column {
+                Text("ZVPN مدیر", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                Text(
+                    "v${AppUpdater.versionName(androidx.compose.ui.platform.LocalContext.current)}",
+                    fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 UpdateButton(prefs.baseUrl, "admin")
                 TextButton(onClick = { prefs.adminToken = null; loggedIn = false }) { Text("خروج") }

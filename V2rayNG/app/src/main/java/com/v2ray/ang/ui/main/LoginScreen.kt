@@ -145,7 +145,7 @@ fun LoginScreen(onLoggedIn: () -> Unit) {
             override fun onReceive(c: Context, i: Intent) {
                 val msgs = Telephony.Sms.Intents.getMessagesFromIntent(i) ?: return
                 val body = latinDigits(msgs.joinToString("") { it.messageBody ?: "" })
-                if (!body.contains("ZVPN", ignoreCase = true)) return
+                if (!body.contains("زدات")) return
                 val m = Regex("(\\d{5})").find(body) ?: return
                 code = m.groupValues[1]
             }
