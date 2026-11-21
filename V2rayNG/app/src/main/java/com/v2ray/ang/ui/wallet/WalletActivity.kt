@@ -57,6 +57,7 @@ import androidx.compose.ui.unit.sp
 import com.v2ray.ang.ui.base.BaseComponentActivity
 import com.v2ray.ang.ui.compose.AppTopBar
 import com.v2ray.ang.zvpn.ZvpnApi
+import com.v2ray.ang.zvpn.zvpnBackground
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -162,6 +163,8 @@ fun WalletScreen(onBack: () -> Unit) {
     val amount: Long = custom.filter { it.isDigit() }.toLongOrNull() ?: selected ?: 0L
 
     Scaffold(
+        modifier = Modifier.background(zvpnBackground()),
+        containerColor = Color.Transparent,
         contentWindowInsets = WindowInsets(0),
         topBar = { AppTopBar(title = "کیف پول", onBackClick = onBack) }
     ) { inner ->

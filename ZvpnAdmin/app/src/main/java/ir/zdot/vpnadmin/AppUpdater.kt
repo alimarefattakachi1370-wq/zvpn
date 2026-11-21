@@ -10,6 +10,16 @@ import android.net.Uri
 import android.os.Build
 import android.provider.Settings
 import android.widget.Toast
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
@@ -169,9 +179,8 @@ fun UpdateButton(baseUrl: String, app: String, modifier: Modifier = Modifier) {
     val scope = rememberCoroutineScope()
     var st by remember { mutableStateOf<UState>(UState.Idle) }
 
-    TextButton(
-        onClick = {
-            if (st is UState.Checking || st is UState.Downloading) return@TextButton
+    val check: () -> Unit = {
+        if (st !is UState.Checking && st !is UState.Downloading) {
             st = UState.Checking
             scope.launch {
                 val info = withContext(Dispatchers.IO) { runCatching { AppUpdater.fetch(baseUrl, app) }.getOrNull() }
@@ -181,9 +190,23 @@ fun UpdateButton(baseUrl: String, app: String, modifier: Modifier = Modifier) {
                     else -> UState.Message("برنامه به‌روز است.")
                 }
             }
-        },
+        }
+    }
+    Box(
         modifier = modifier
-    ) { Text(if (st is UState.Checking) "در حال بررسی…" else "بروزرسانی برنامه") }
+            .clip(RoundedCornerShape(50))
+            .background(Brush.linearGradient(listOf(Color(0xFF22C55E), Color(0xFF047857))))
+            .clickable(onClick = check)
+            .padding(horizontal = 24.dp, vertical = 10.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            if (st is UState.Checking) "در حال بررسی…" else "بروزرسانی برنامه",
+            color = Color.White,
+            fontWeight = FontWeight.Bold,
+            fontSize = 14.sp
+        )
+    }
 
     when (val s = st) {
         is UState.Available -> AlertDialog(

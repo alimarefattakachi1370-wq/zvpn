@@ -2,6 +2,7 @@ package com.v2ray.ang.ui.main
 
 import android.net.TrafficStats
 import com.v2ray.ang.zvpn.UpdateButton
+import com.v2ray.ang.zvpn.zvpnBackground
 import com.v2ray.ang.zvpn.ZvpnApi
 import android.os.Process
 import android.os.SystemClock
@@ -86,7 +87,7 @@ fun HomeScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)
+                .background(zvpnBackground())
                 .systemBarsPadding()
         ) {
             // Top row: wallet + remaining subscription
@@ -128,11 +129,6 @@ fun HomeScreen(
                 }
                 Text("ZVPN", fontWeight = FontWeight.Bold, fontSize = 20.sp, color = green)
             }
-
-            UpdateButton(
-                ZvpnApi.BASE_URL, "user",
-                Modifier.align(Alignment.BottomCenter).padding(bottom = 8.dp)
-            )
 
             // Center: connect button
             Column(
@@ -206,15 +202,21 @@ fun HomeScreen(
                 }
             }
 
-            if (active) {
-                Text(
-                    "اعتبار تا ${jalaliDate(expiry)}",
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .padding(bottom = 24.dp),
-                    fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+            Column(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 20.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                if (active) {
+                    Text(
+                        "اعتبار تا ${jalaliDate(expiry)}",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(Modifier.height(10.dp))
+                }
+                UpdateButton(ZvpnApi.BASE_URL, "user")
             }
         }
     }

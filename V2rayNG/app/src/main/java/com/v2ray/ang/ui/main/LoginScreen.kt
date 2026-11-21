@@ -44,6 +44,7 @@ import androidx.compose.ui.unit.sp
 import com.v2ray.ang.R
 import com.v2ray.ang.ui.wallet.toFa
 import com.v2ray.ang.zvpn.ZvpnApi
+import com.v2ray.ang.zvpn.zvpnBackground
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -115,7 +116,7 @@ fun LoginScreen(onLoggedIn: () -> Unit) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)
+                .background(zvpnBackground())
                 .systemBarsPadding()
                 .verticalScroll(rememberScrollState())
                 .padding(24.dp),
