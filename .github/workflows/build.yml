@@ -30,6 +30,22 @@ jobs:
         run: |
           chmod +x gradlew
           ./gradlew assemblePlaystoreDebug -PABI_FILTERS=arm64-v8a
+      - name: Sign with the fixed key
+        env:
+          KS: ${{ secrets.DEBUG_KEYSTORE_B64 }}
+        run: |
+          set -e
+          [ -n "$KS" ] || { echo "::error::DEBUG_KEYSTORE_B64 secret is empty"; exit 1; }
+          BT="$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -n1)"
+          echo "$KS" | base64 -d > "$RUNNER_TEMP/zvpn.keystore"
+          keytool -list -keystore "$RUNNER_TEMP/zvpn.keystore" -storepass android | grep -i "fingerprint"
+          for APK in $(find V2rayNG/app/build/outputs/apk -name '*.apk'); do
+            "$BT/zipalign" -f -p 4 "$APK" "$APK.aligned"
+            "$BT/apksigner" sign --ks "$RUNNER_TEMP/zvpn.keystore" --ks-pass pass:android --key-pass pass:android \
+              --ks-key-alias androiddebugkey --v4-signing-enabled false --out "$APK" "$APK.aligned"
+            rm -f "$APK.aligned" "$APK.idsig"
+            "$BT/apksigner" verify --print-certs "$APK" | grep "SHA-256"
+          done
       - uses: actions/upload-artifact@v5
         with:
           name: zvpn-apk
@@ -70,6 +86,22 @@ jobs:
         run: |
           chmod +x gradlew
           ./gradlew assembleDebug
+      - name: Sign with the fixed key
+        env:
+          KS: ${{ secrets.DEBUG_KEYSTORE_B64 }}
+        run: |
+          set -e
+          [ -n "$KS" ] || { echo "::error::DEBUG_KEYSTORE_B64 secret is empty"; exit 1; }
+          BT="$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -n1)"
+          echo "$KS" | base64 -d > "$RUNNER_TEMP/zvpn.keystore"
+          keytool -list -keystore "$RUNNER_TEMP/zvpn.keystore" -storepass android | grep -i "fingerprint"
+          for APK in $(find ZvpnAdmin/app/build/outputs/apk/debug -name '*.apk'); do
+            "$BT/zipalign" -f -p 4 "$APK" "$APK.aligned"
+            "$BT/apksigner" sign --ks "$RUNNER_TEMP/zvpn.keystore" --ks-pass pass:android --key-pass pass:android \
+              --ks-key-alias androiddebugkey --v4-signing-enabled false --out "$APK" "$APK.aligned"
+            rm -f "$APK.aligned" "$APK.idsig"
+            "$BT/apksigner" verify --print-certs "$APK" | grep "SHA-256"
+          done
       - uses: actions/upload-artifact@v5
         with:
           name: zvpn-admin-apk

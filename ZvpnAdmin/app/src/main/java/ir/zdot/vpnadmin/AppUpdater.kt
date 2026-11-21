@@ -89,7 +89,7 @@ object AppUpdater {
             val b = certHash(sigsOf(neu))
             if (a != "?" && b != "?" && a != b) {
                 return "امضای نسخهٔ جدید ($b) با نسخهٔ نصب‌شده ($a) فرق دارد.\n" +
-                    "یک بار این برنامه را پاک کن و ZVPN.apk را از پوشهٔ Download نصب کن؛ از آن به بعد بروزرسانی کار می‌کند."
+                    "یک بار این برنامه را پاک کن و ZVPN-Admin.apk را از پوشهٔ Download نصب کن؛ از آن به بعد بروزرسانی کار می‌کند."
             }
             if (versionOf(neu) < versionOf(cur)) {
                 return "شمارهٔ نسخهٔ APK جدید (${versionOf(neu)}) از نسخهٔ نصب‌شده (${versionOf(cur)}) کمتر است."
