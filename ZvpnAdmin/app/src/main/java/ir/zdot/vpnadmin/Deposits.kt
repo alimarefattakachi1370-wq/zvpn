@@ -77,7 +77,7 @@ fun DepositsTab(api: AdminApi, refreshKey: Int, onAuth: () -> Unit) {
             if (!loading && pending.isEmpty()) Text("پرداخت منتظری وجود ندارد.", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         items(pending) { p ->
-            Card(shape = RoundedCornerShape(14.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
+            Card3D(shape = RoundedCornerShape(14.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
                 Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text(p.phone.toFa(), fontWeight = FontWeight.Bold)
@@ -91,7 +91,7 @@ fun DepositsTab(api: AdminApi, refreshKey: Int, onAuth: () -> Unit) {
         }
         item { SectionTitle("واریزهای اخیر (از پیامک بانک)") }
         items(deposits) { d ->
-            Card(shape = RoundedCornerShape(14.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
+            Card3D(shape = RoundedCornerShape(14.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
                 Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text("${d.amount.fa()} ریال", fontWeight = FontWeight.Bold)

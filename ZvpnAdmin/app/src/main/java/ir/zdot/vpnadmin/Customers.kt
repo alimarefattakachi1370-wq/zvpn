@@ -90,7 +90,7 @@ fun CustomersTab(api: AdminApi, refreshKey: Int, onAuth: () -> Unit, onOpen: (In
         if (loading) CircularProgressIndicator(modifier = Modifier.padding(4.dp))
         LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxSize()) {
             items(users) { u ->
-                Card(
+                Card3D(
                     modifier = Modifier.fillMaxWidth().clickable { onOpen(u.id) },
                     shape = RoundedCornerShape(14.dp),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
@@ -116,7 +116,7 @@ fun CustomersTab(api: AdminApi, refreshKey: Int, onAuth: () -> Unit, onOpen: (In
 
 @Composable
 private fun StatCard(title: String, value: String, modifier: Modifier) {
-    Card(
+    Card3D(
         modifier = modifier,
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
@@ -186,7 +186,7 @@ fun UserDetail(api: AdminApi, userId: Int, onBack: () -> Unit, onAuth: () -> Uni
         ErrorText(error)
         val u = user
         if (u != null) {
-            Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
+            Card3D(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
                 Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(u.phone.toFa(), fontSize = 22.sp, fontWeight = FontWeight.Bold)
                     Labeled("موجودی کیف پول", u.wallet.toman())

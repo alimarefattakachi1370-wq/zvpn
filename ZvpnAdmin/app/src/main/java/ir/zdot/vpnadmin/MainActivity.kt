@@ -41,7 +41,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             AdminTheme {
                 CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
-                    Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+                    Box(Modifier.fillMaxSize()) {
                         AppRoot()
                     }
                 }
@@ -93,7 +93,7 @@ private fun AppRoot() {
         }
 
         if (openUser == null) {
-            NavigationBar {
+            NavigationBar(containerColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.92f), tonalElevation = 0.dp) {
                 NavigationBarItem(selected = tab == 0, onClick = { tab = 0 }, icon = { Text("👥") }, label = { Text("مشتریان") })
                 NavigationBarItem(selected = tab == 1, onClick = { tab = 1 }, icon = { Text("💳") }, label = { Text("واریزها") })
                 NavigationBarItem(selected = tab == 2, onClick = { tab = 2 }, icon = { Text("📩") }, label = { Text("پیامک") })

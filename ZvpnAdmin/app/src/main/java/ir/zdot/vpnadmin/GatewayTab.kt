@@ -113,7 +113,7 @@ fun GatewayTab(api: AdminApi, onAuth: () -> Unit) {
         if (note != null) Text(note ?: "", fontSize = 12.sp, color = MaterialTheme.colorScheme.primary)
 
         SectionTitle("دریافت پیامک بانک")
-        Card(shape = RoundedCornerShape(14.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
+        Card3D(shape = RoundedCornerShape(14.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
             Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text("ارسال پیامک‌های واریز به سرور", fontWeight = FontWeight.Bold)
@@ -132,7 +132,7 @@ fun GatewayTab(api: AdminApi, onAuth: () -> Unit) {
         }
 
         SectionTitle("درگاه ارسال کد ورود")
-        Card(shape = RoundedCornerShape(14.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
+        Card3D(shape = RoundedCornerShape(14.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
             Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text("ارسال پیامک کد ورود از این گوشی", fontWeight = FontWeight.Bold)
