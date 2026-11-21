@@ -6,6 +6,9 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageInstaller
+import android.content.pm.Signature
+import android.content.pm.PackageManager
+import android.content.pm.PackageInfo
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
@@ -42,6 +45,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.io.File
+import java.security.MessageDigest
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
@@ -50,6 +54,49 @@ import java.util.Locale
 /** Self-update: checks update.php on the host, downloads the APK and hands it to the system installer. */
 object AppUpdater {
     class Info(val build: Int, val name: String, val url: String, val notes: String, val size: Long)
+
+    /** Last install failure (full text), shown in a dialog by UpdateButton. */
+    var lastError by mutableStateOf<String?>(null)
+
+    private fun certHash(sigs: Array<Signature>?): String {
+        if (sigs == null || sigs.isEmpty()) return "?"
+        val md = MessageDigest.getInstance("SHA-256")
+        return md.digest(sigs[0].toByteArray()).joinToString("") { "%02x".format(it) }.take(10)
+    }
+
+    @Suppress("DEPRECATION")
+    private fun sigsOf(pi: PackageInfo): Array<Signature>? =
+        if (Build.VERSION.SDK_INT >= 28) pi.signingInfo?.apkContentsSigners else pi.signatures
+
+    @Suppress("DEPRECATION")
+    private fun versionOf(pi: PackageInfo): Long =
+        if (Build.VERSION.SDK_INT >= 28) pi.longVersionCode else pi.versionCode.toLong()
+
+    /** Returns a readable reason when Android would refuse this APK, otherwise null. */
+    @Suppress("DEPRECATION")
+    fun diagnose(ctx: Context, apk: File): String? {
+        return try {
+            val pm = ctx.packageManager
+            val flags = if (Build.VERSION.SDK_INT >= 28) PackageManager.GET_SIGNING_CERTIFICATES else PackageManager.GET_SIGNATURES
+            val neu = pm.getPackageArchiveInfo(apk.absolutePath, flags) ?: return "فایل APK دانلودشده معتبر نیست."
+            val cur = pm.getPackageInfo(ctx.packageName, flags)
+            if (neu.packageName != ctx.packageName) {
+                return "نام بستهٔ APK جدید (${neu.packageName}) با برنامهٔ نصب‌شده (${ctx.packageName}) فرق دارد."
+            }
+            val a = certHash(sigsOf(cur))
+            val b = certHash(sigsOf(neu))
+            if (a != "?" && b != "?" && a != b) {
+                return "امضای نسخهٔ جدید ($b) با نسخهٔ نصب‌شده ($a) فرق دارد.\n" +
+                    "یک بار این برنامه را پاک کن و ZVPN.apk را از پوشهٔ Download نصب کن؛ از آن به بعد بروزرسانی کار می‌کند."
+            }
+            if (versionOf(neu) < versionOf(cur)) {
+                return "شمارهٔ نسخهٔ APK جدید (${versionOf(neu)}) از نسخهٔ نصب‌شده (${versionOf(cur)}) کمتر است."
+            }
+            null
+        } catch (e: Exception) {
+            null
+        }
+    }
 
     private const val ACTION = "com.v2ray.ang.zvpn.UPDATE_RESULT"
     private var receiver: BroadcastReceiver? = null
@@ -115,6 +162,7 @@ object AppUpdater {
     /** Returns false when the user still has to allow "install unknown apps" (the settings page is opened). */
     fun install(ctx: Context, apk: File): Boolean {
         val app = ctx.applicationContext
+        diagnose(app, apk)?.let { lastError = it; return true }
         if (Build.VERSION.SDK_INT >= 26 && !app.packageManager.canRequestPackageInstalls()) {
             app.startActivity(
                 Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:${app.packageName}"))
@@ -149,11 +197,8 @@ object AppUpdater {
                         if (confirm != null) c.startActivity(confirm)
                     }
                     PackageInstaller.STATUS_SUCCESS -> {}
-                    else -> Toast.makeText(
-                        c,
-                        "نصب بروزرسانی ناموفق بود: " + (i.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE) ?: ""),
-                        Toast.LENGTH_LONG
-                    ).show()
+                    else -> lastError = "کد خطا: " + i.getIntExtra(PackageInstaller.EXTRA_STATUS, -1) + "\n" +
+                        (i.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE) ?: "")
                 }
             }
         }
@@ -209,6 +254,15 @@ fun UpdateButton(baseUrl: String, app: String, modifier: Modifier = Modifier) {
         )
     }
 
+    AppUpdater.lastError?.let { err ->
+        AlertDialog(
+            onDismissRequest = { AppUpdater.lastError = null },
+            title = { Text("نصب بروزرسانی ناموفق بود") },
+            text = { Text(err) },
+            confirmButton = { TextButton(onClick = { AppUpdater.lastError = null }) { Text("باشه") } }
+        )
+    }
+
     when (val s = st) {
         is UState.Available -> AlertDialog(
             onDismissRequest = { st = UState.Idle },
@@ -234,7 +288,7 @@ fun UpdateButton(baseUrl: String, app: String, modifier: Modifier = Modifier) {
                             st = if (started) UState.Idle
                             else UState.Message("اجازهٔ «نصب برنامه‌های ناشناس» را برای این برنامه فعال کن، برگرد و دوباره بروزرسانی را بزن.")
                         } catch (e: Exception) {
-                            st = UState.Message("دانلود ناموفق بود: ${e.message ?: ""}")
+                            st = UState.Message("خطا: ${e.message ?: e.javaClass.simpleName}")
                         }
                     }
                 }) { Text("بروزرسانی") }
