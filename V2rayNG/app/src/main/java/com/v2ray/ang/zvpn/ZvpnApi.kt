@@ -84,13 +84,20 @@ object ZvpnApi {
     }
 
     /** Sends the login code by SMS. Returns the seconds to wait before a resend. */
+    /** True when this phone has no saved name yet (first login). Set by requestOtp. */
+    @Volatile var needName: Boolean = false
+
     fun requestOtp(phone: String): Int {
         val res = request("otp_send", "POST", JSONObject().put("phone", phone), null, "")
-        return parse(res.first, res.second).optInt("wait", 60)
+        val j = parse(res.first, res.second)
+        needName = j.optBoolean("need_name", false)
+        return j.optInt("wait", 60)
     }
 
-    fun verifyOtp(c: Context, phone: String, code: String) {
-        val res = request("otp_verify", "POST", JSONObject().put("phone", phone).put("code", code), null, "")
+    fun verifyOtp(c: Context, phone: String, code: String, name: String = "") {
+        val body = JSONObject().put("phone", phone).put("code", code)
+        if (name.isNotBlank()) body.put("name", name.trim())
+        val res = request("otp_verify", "POST", body, null, "")
         val json = parse(res.first, res.second)
         sp(c).edit().putString("token", json.getString("token")).apply()
         WalletStore.save(c, json)

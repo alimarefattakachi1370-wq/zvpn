@@ -11,6 +11,7 @@ data class UserItem(
     val active: Boolean,
     val status: String,
     val reason: String,
+    val name: String = "",
 )
 
 data class Stats(
@@ -56,6 +57,7 @@ class AdminApi(private val prefs: Prefs) {
     private fun user(o: JSONObject) = UserItem(
         o.getInt("id"), o.getString("phone"), o.getLong("wallet"), o.getLong("sub_until_ms"),
         o.getBoolean("active"), o.getString("status"), o.optString("disabled_reason", ""),
+        o.optString("name", ""),
     )
 
     fun login(username: String, password: String) {

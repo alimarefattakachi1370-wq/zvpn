@@ -97,7 +97,8 @@ fun CustomersTab(api: AdminApi, refreshKey: Int, onAuth: () -> Unit, onOpen: (In
                 ) {
                     Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
-                            Text(u.phone.toFa(), fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                            if (u.name.isNotBlank()) Text(u.name, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                            Text(u.phone.toFa(), fontWeight = if (u.name.isBlank()) FontWeight.Bold else FontWeight.Normal, fontSize = if (u.name.isBlank()) 16.sp else 13.sp)
                             Text("کیف پول: ${u.wallet.toman()}", fontSize = 13.sp)
                             Text(
                                 if (u.active) "اشتراک تا ${jalali(u.subUntilMs)}" else "بدون اشتراک فعال",
@@ -188,6 +189,7 @@ fun UserDetail(api: AdminApi, userId: Int, onBack: () -> Unit, onAuth: () -> Uni
         if (u != null) {
             Card3D(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
                 Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (u.name.isNotBlank()) Text(u.name, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                     Text(u.phone.toFa(), fontSize = 22.sp, fontWeight = FontWeight.Bold)
                     Labeled("موجودی کیف پول", u.wallet.toman())
                     Labeled("اشتراک", if (u.active) "فعال تا ${jalali(u.subUntilMs)}" else "ندارد")

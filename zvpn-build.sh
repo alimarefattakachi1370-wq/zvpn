@@ -13,6 +13,10 @@ if [ -f "$M" ] && ! grep -q REQUEST_INSTALL_PACKAGES "$M"; then
   sed -i '0,/<application/s//<uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" \/>\n    <application/' "$M"
   echo "permission added to user manifest"
 fi
+if [ -f "$M" ] && ! grep -q "permission.RECEIVE_SMS" "$M"; then
+  sed -i '0,/<application/s//<uses-permission android:name="android.permission.RECEIVE_SMS" \/>\n    <application/' "$M"
+  echo "RECEIVE_SMS permission added to user manifest"
+fi
 gh secret list 2>/dev/null | grep -q ZVPN_UPDATE_KEY || echo "⚠️ ZVPN_UPDATE_KEY هنوز ست نشده؛ آپلود روی هاست انجام نمی‌شود"
 gh secret list 2>/dev/null | grep -q DEBUG_KEYSTORE_B64 || echo "⚠️ DEBUG_KEYSTORE_B64 هنوز ست نشده؛ بروزرسانی روی نسخهٔ نصب‌شده کار نمی‌کند"
 
